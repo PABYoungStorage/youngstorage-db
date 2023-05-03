@@ -1,0 +1,125 @@
+# Use root/example as user/password credentials
+
+version: '3.1'
+
+services:
+
+  db:
+    image: mysql
+    hostname: mysql.youngstorage.in
+    container_name: mysql.youngstorage.in
+    networks:
+      default:
+        ipv4_address: 172.17.0.13
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+  
+       
+  psql:
+    image: postgres
+    hostname: postgres.youngstorage.in
+    container_name: postgres.youngstorage.in
+    networks:
+      default:
+        ipv4_address: 172.17.0.12
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: example
+
+
+
+  adminer:
+    image: adminer
+    hostname: adminer.youngstorage.in
+    container_name: adminer.youngstorage.in
+    # network_mode: "bridge"
+    networks:
+      default:
+        ipv4_address: 172.17.0.11
+    restart: always
+    expose:
+      - 8080
+    links:
+      - db
+      - psql
+
+  mq:
+    hostname: rabbitmq.youngstorage.in
+    image: rabbitmq:3.11-management
+    container_name: rabbitmq.youngstorage.in
+    networks:
+      default:
+        ipv4_address: 172.17.0.10
+    restart: "always"
+    # command: rabbitmq-plugins enable rabbitmq_web_stomp_examples rabbitmq_web_stomp
+    ports:
+      - "15674:15674"
+      - "15672:15672"
+      - "5672:5672"
+      - "1883:1883"
+    labels:
+      - "traefik.domain=nocturnalplay.tech"
+      - "traefik.enable=true"
+      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.nocturnalplay.tech`)"
+      - "traefik.http.routers.rabbitmq.service=svc_rabbitmq"
+      - traefik.http.routers.rabbitmq.tls=true
+      - traefik.http.routers.rabbitmq.entrypoints=websecure
+      - "traefik.http.services.svc_rabbitmq.loadbalancer.server.port=15672"
+    # volumes:
+    #   - ~/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+
+
+
+  portainer:
+    container_name: portainer.youngstorage.tech
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    networks:
+      - default
+    command: -H unix:///var/run/docker.sock 
+    # ports:
+    #   - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro 
+      - $DOCKERDIR/appdata/portainer/data:/data 
+    # environment:
+    #   - TZ=$TZ
+    labels:
+      - "traefik.domain=youngstorage.tech"
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.youngstorage.tech`)"
+      - "traefik.http.routers.portainer.service=svc_portainer"
+      - traefik.http.routers.portainer.tls=true
+      - traefik.http.routers.portainer.entrypoints=websecure
+      - "traefik.http.services.svc_portainer.loadbalancer.server.port=9000"
+    # networks:
+    #   default:
+    #     ipv4_address: 172.17.0.16
+
+  mongo:
+    hostname: mongodb.youngstorage.in
+    image: mongo:4.4.21-rc0
+    container_name: mongodb.youngstorage.in
+    networks:
+      default:
+        ipv4_address: 172.17.0.17
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+
+  # mongo-express:
+  #   image: mongo-express
+  #   restart: always
+  #   # ports:
+  #   #   - 8081:8081
+  #   environment:
+  #     ME_CONFIG_MONGODB_ADMINUSERNAME: root
+  #     ME_CONFIG_MONGODB_ADMINPASSWORD: example
+  #     ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+
+networks:
+  default:
+      name: service
+      external: true
